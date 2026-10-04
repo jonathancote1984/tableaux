@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tableaux — Éditeur de tableaux de données</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<h1 class="sr-only" id="page-heading">Tableaux — éditeur de tableaux de données</h1>
+<div id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">▦</span>
+        <span class="brand-name">Tableaux</span>
+      </div>
+      <button class="btn btn-primary btn-block" id="btn-new-table">
+        <span class="btn-icon" aria-hidden="true">+</span> Nouveau tableau
+      </button>
+    </div>
+
+    <nav class="table-list" id="table-list" aria-label="Liste des tableaux"></nav>
+
+    <div class="sidebar-foot">
+      <button class="btn btn-ghost btn-block" id="btn-import">
+        <span class="btn-icon" aria-hidden="true">↥</span> Importer un CSV
+      </button>
+      <div class="foot-row">
+        <button class="btn btn-ghost" id="btn-backup" title="Enregistrer une sauvegarde de tous mes tableaux">
+          <span class="btn-icon" aria-hidden="true">⤓</span> Sauvegarder
+        </button>
+        <button class="btn btn-ghost" id="btn-restore" title="Restaurer depuis un fichier de sauvegarde">
+          <span class="btn-icon" aria-hidden="true">↥</span> Restaurer
+        </button>
+      </div>
+      <p class="hint">
+        Vos données sont enregistrées localement dans votre navigateur.<br />
+        <strong>Sauvegardez régulièrement</strong> : vider le cache effacerait tout.
+      </p>
+      <details class="shortcuts">
+        <summary>Raccourcis clavier</summary>
+        <p class="hint">
+          <kbd>Ctrl</kbd>+<kbd>Z</kbd> annuler · <kbd>Ctrl</kbd>+<kbd>Y</kbd> rétablir ·
+          <kbd>Ctrl</kbd>+<kbd>K</kbd> rechercher · <kbd>Ctrl</kbd>+<kbd>P</kbd> imprimer
+        </p>
+      </details>
+    </div>
+    <input type="file" id="file-csv" accept=".csv,text/csv" hidden />
+    <input type="file" id="file-json" accept=".json,application/json" hidden />
+  </aside>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <main class="main">
+    <div class="print-only print-header" id="print-header"></div>
+
+    <header class="toolbar">
+      <button class="icon-tb sidebar-toggle" id="btn-sidebar" title="Afficher les tableaux" aria-label="Afficher la liste des tableaux">
+        <span aria-hidden="true">☰</span>
+      </button>
+
+      <div class="toolbar-left">
+        <input class="title-input" id="table-title" type="text" spellcheck="false" aria-label="Nom du tableau" />
+        <span class="badge" id="table-meta">0 ligne</span>
+      </div>
+
+      <div class="toolbar-center">
+        <div class="fmt-tools" id="fmt-tools" hidden>
+          <button class="icon-tb" id="btn-bold" title="Gras (Ctrl+B)" aria-label="Gras" aria-pressed="false"><b>G</b></button>
+          <button class="icon-tb" id="btn-italic" title="Italique (Ctrl+I)" aria-label="Italique" aria-pressed="false"><i>I</i></button>
+          <button class="icon-tb" id="btn-underline" title="Souligné (Ctrl+U)" aria-label="Souligné" aria-pressed="false"><u>S</u></button>
+        </div>
+
+        <button class="icon-tb" id="btn-undo" title="Annuler (Ctrl+Z)" aria-label="Annuler">
+          <span aria-hidden="true">↶</span>
+        </button>
+        <button class="icon-tb" id="btn-redo" title="Rétablir (Ctrl+Y)" aria-label="Rétablir">
+          <span aria-hidden="true">↷</span>
+        </button>
+
+        <div class="search">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input id="search" type="search" placeholder="Rechercher…" aria-label="Rechercher dans le tableau" />
+        </div>
+      </div>
+
+      <div class="toolbar-right">
+        <div class="view-switch" id="view-switch" role="group" aria-label="Mode d'affichage">
+          <button type="button" data-view="screen" class="on" aria-pressed="true" title="Voir le tableau à l'écran">
+            <span aria-hidden="true">▦</span> <span class="vs-label">Écran</span>
+          </button>
+          <button type="button" data-view="print" aria-pressed="false" title="Voir le tableau tel qu'il sera imprimé">
+            <span aria-hidden="true">⎙</span> <span class="vs-label">Impression</span>
+          </button>
+        </div>
+
+        <span class="toolbar-sep" aria-hidden="true"></span>
+        <button class="btn" id="btn-add-col" title="Ajouter une colonne"><span class="btn-icon" aria-hidden="true">⊕</span> <span class="btn-label">Colonne</span></button>
+        <button class="btn" id="btn-add-row" title="Ajouter une ligne"><span class="btn-icon" aria-hidden="true">+</span> <span class="btn-label">Ligne</span></button>
+        <span class="toolbar-sep" aria-hidden="true"></span>
+        <button class="btn" id="btn-style" title="Style du tableau"><span class="btn-icon" aria-hidden="true">◈</span> <span class="btn-label">Style</span></button>
+        <button class="btn" id="btn-export-csv" title="Exporter en CSV"><span class="btn-icon" aria-hidden="true">⤓</span> <span class="btn-label">CSV</span></button>
+        <button class="btn" id="btn-export-doc" title="Exporter en Word"><span class="btn-icon" aria-hidden="true">⤓</span> <span class="btn-label">DOC</span></button>
+        <button class="btn btn-primary" id="btn-print" title="Imprimer"><span class="btn-icon" aria-hidden="true">⎙</span> <span class="btn-label">Imprimer</span></button>
+      </div>
+    </header>
+
+    <section class="grid-wrap">
+      <div class="grid" id="grid" role="grid" aria-label="Données du tableau"></div>
+    </section>
+
+    <footer class="statusbar">
+      <span id="status-text">Prêt</span>
+      <span class="statusbar-right" id="status-right"></span>
+    </footer>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h2 id="modal-title">Titre</h2>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="modal-cancel">Annuler</button>
+      <button class="btn btn-primary" id="modal-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>

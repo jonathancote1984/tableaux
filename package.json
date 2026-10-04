@@ -1,0 +1,13 @@
+{
+  "name": "tableaux",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Éditeur de tableaux de données — créez, organisez et exportez vos tableaux.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
