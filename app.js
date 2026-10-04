@@ -554,7 +554,10 @@ function makeTable(name) {
 
 function load() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    // Application Windows : l'etat vient de SQLite. Navigateur : localStorage.
+    const raw = window.tableaux && window.tableaux.lireEtat
+      ? window.tableaux.lireEtat()
+      : localStorage.getItem(STORAGE_KEY);
     if (!raw) return blankState();
     const data = JSON.parse(raw);
     if (!data || !Array.isArray(data.tables) || data.tables.length === 0) return blankState();
@@ -603,7 +606,10 @@ function normalizeTable(t) {
 }
 
 function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  const json = JSON.stringify(state);
+  // Application Windows : l'etat part vers SQLite. Navigateur : localStorage.
+  if (window.tableaux && window.tableaux.ecrireEtat) window.tableaux.ecrireEtat(json);
+  else localStorage.setItem(STORAGE_KEY, json);
 }
 
 function activeTable() {
