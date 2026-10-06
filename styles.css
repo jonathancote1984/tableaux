@@ -2294,7 +2294,7 @@ body.tbl-zebra .grid-row.body:nth-child(even):hover {
   padding: calc(3 * 100cqw / var(--pp-paper-w, 612)) calc(5 * 100cqw / var(--pp-paper-w, 612));
 }
 
-.pp-table tbody tr:nth-child(even) td { background: var(--pp-cell-bg-alt, #f2f2f2); }
+.pp-table.zebra tbody tr:nth-child(even) td { background: var(--pp-cell-bg-alt, #f2f2f2); }
 
 .pp-table .pp-num {
   text-align: center;

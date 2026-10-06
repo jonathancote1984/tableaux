@@ -3002,7 +3002,7 @@ function buildPrintPreview(opts = {}) {
   const widths = printColWidthsPt(t, p);
   const pct = (i) => (p.rowNumbers && i < 0 ? widths.rowNum : widths.cols[i]);
 
-  const table = el("table", { class: "pp-table" });
+  const table = el("table", { class: "pp-table" + (p.zebra ? " zebra" : "") });
 
   const trh = el("tr");
   if (p.rowNumbers) {
@@ -3048,12 +3048,6 @@ function buildPrintPreview(opts = {}) {
     });
   }
   table.appendChild(tbody);
-  if (p.zebra) {
-    Array.from(tbody.querySelectorAll("tr")).forEach((tr, i) => {
-      if (i % 2 !== 0) return;
-      tr.querySelectorAll("td").forEach((td) => { td.style.background = c.cellBgAlt; });
-    });
-  }
   sheet.appendChild(table);
 
   if (rows.length > shown.length) {
