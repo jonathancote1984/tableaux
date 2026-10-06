@@ -2702,7 +2702,29 @@ function preparePrint() {
   $$(".empty-state button").forEach((b) => b.remove());
 }
 
+function paintPrintZebra() {
+  clearPrintZebra();
+  const p = normalizePrint(state.print);
+  if (!p.zebra) return;
+  const c = resolvePrintColors(p);
+  $$(".grid .grid-row.body").forEach((row, i) => {
+    if (i % 2 !== 0) return;
+    row.querySelectorAll(".cell").forEach((cell) => {
+      cell.dataset.zebraBg = cell.style.background;
+      cell.style.background = c.cellBgAlt;
+    });
+  });
+}
+
+function clearPrintZebra() {
+  $$(".grid .cell[data-zebra-bg]").forEach((cell) => {
+    cell.style.background = cell.dataset.zebraBg || "";
+    delete cell.dataset.zebraBg;
+  });
+}
+
 function restoreAfterPrint() {
+  clearPrintZebra();
   renderGrid();
 }
 
@@ -2819,6 +2841,7 @@ function doPrint() {
   renderPrintHeader();
   applyPrintPage();
   preparePrint();
+  paintPrintZebra();
   setTimeout(() => {
     window.print();
     setTimeout(restoreAfterPrint, 250);
@@ -3025,6 +3048,12 @@ function buildPrintPreview(opts = {}) {
     });
   }
   table.appendChild(tbody);
+  if (p.zebra) {
+    Array.from(tbody.querySelectorAll("tr")).forEach((tr, i) => {
+      if (i % 2 !== 0) return;
+      tr.querySelectorAll("td").forEach((td) => { td.style.background = c.cellBgAlt; });
+    });
+  }
   sheet.appendChild(table);
 
   if (rows.length > shown.length) {
@@ -4048,6 +4077,7 @@ function bindEvents() {
     renderPrintHeader();
     applyPrintPage();
     preparePrint();
+    paintPrintZebra();
   });
 
   $("#file-csv").addEventListener("change", (e) => {
