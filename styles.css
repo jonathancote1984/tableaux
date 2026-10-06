@@ -888,6 +888,10 @@ body.tbl-zebra .grid-row.body:nth-child(even) {
   background: var(--tbl-cell-bg-alt);
 }
 
+body.tbl-zebra .grid-row.body:nth-child(even) .cell {
+  background: var(--tbl-cell-bg-alt);
+}
+
 body.tbl-zebra .grid-row.body:nth-child(even):hover {
   background: color-mix(in srgb, var(--tbl-accent) 10%, var(--tbl-cell-bg-alt));
 }
