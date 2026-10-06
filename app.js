@@ -290,7 +290,7 @@ function normalizePrint(p) {
   out.fontSize = clampNum(out.fontSize, 6, 20, base.fontSize);
   out.headWeight = clampInt(out.headWeight, 300, 800, base.headWeight);
   out.headTransform = ["none", "uppercase"].includes(out.headTransform) ? out.headTransform : "none";
-  out.headAlign = ["left", "center"].includes(out.headAlign) ? out.headAlign : "left";
+  out.headAlign = ["left", "center", "right"].includes(out.headAlign) ? out.headAlign : "left";
   out.zebra = out.zebra !== false;
   out.borderStyle = ["solid", "dashed", "dotted", "double"].includes(out.borderStyle) ? out.borderStyle : "solid";
   out.borderWeight = clampNum(out.borderWeight, 0.25, 6, base.borderWeight);
@@ -406,7 +406,7 @@ function normalizeStyle(s) {
   out.font = FONTS[out.font] ? out.font : base.font;
   out.borderStyle = ["solid", "dashed", "dotted", "double", "none"].includes(out.borderStyle) ? out.borderStyle : "solid";
   out.headTransform = ["none", "uppercase"].includes(out.headTransform) ? out.headTransform : "none";
-  out.headAlign = ["left", "center"].includes(out.headAlign) ? out.headAlign : "left";
+  out.headAlign = ["left", "center", "right"].includes(out.headAlign) ? out.headAlign : "left";
   out.theme = THEMES[out.theme] ? out.theme : "personnalisé";
   out.fontSize = clampNum(out.fontSize, 9, 22, base.fontSize);
   out.rowHeight = clampInt(out.rowHeight, 24, 90, base.rowHeight);
@@ -529,6 +529,19 @@ function blankState() {
 }
 
 let state = load();
+let fileHandle = null;
+let fileName = "";
+let dirty = false;
+const BASE_TITLE = document.title;
+
+function updateDirtyUI() {
+  document.title = (dirty ? "• " : "") + BASE_TITLE;
+}
+
+function markClean() {
+  dirty = false;
+  updateDirtyUI();
+}
 let searchTerm = "";
 let sortCol = null;
 let sortDir = 1;
@@ -555,18 +568,23 @@ function makeTable(name) {
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return blankState();
-    const data = JSON.parse(raw);
-    if (!data || !Array.isArray(data.tables) || data.tables.length === 0) return blankState();
-    data.tables.forEach(normalizeTable);
-    if (!data.tables.some((t) => t.id === data.activeId)) data.activeId = data.tables[0].id;
-    data.print = normalizePrint(data.print);
-    data.style = normalizeStyle(data.style);
-    return data;
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data && Array.isArray(data.tables) && data.tables.length > 0) {
+        data.tables.forEach(normalizeTable);
+        if (!data.tables.some((t) => t.id === data.activeId)) data.activeId = data.tables[0].id;
+        data.print = normalizePrint(data.print);
+        data.style = normalizeStyle(data.style);
+        localStorage.removeItem(STORAGE_KEY);
+        setTimeout(() => toast("Anciennes données du navigateur récupérées — pensez à Sauvegarder dans un fichier"), 0);
+        return data;
+      }
+      localStorage.removeItem(STORAGE_KEY);
+    }
   } catch (err) {
-    console.error("Chargement impossible, réinitialisation :", err);
-    return blankState();
+    console.error("Lecture de l'ancien cache impossible :", err);
   }
+  return blankState();
 }
 
 function normalizeTable(t) {
@@ -603,7 +621,8 @@ function normalizeTable(t) {
 }
 
 function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  dirty = true;
+  updateDirtyUI();
 }
 
 function activeTable() {
@@ -2266,13 +2285,13 @@ async function importJSON(file) {
     data = JSON.parse(await file.text());
   } catch {
     toast("Fichier illisible : ce n'est pas du JSON valide", "err");
-    return;
+    return false;
   }
 
   const list = Array.isArray(data) ? data : data.tables;
   if (!Array.isArray(list) || list.length === 0) {
     toast("Aucun tableau trouvé dans ce fichier", "err");
-    return;
+    return false;
   }
 
   const nbTables = list.length;
@@ -2291,7 +2310,7 @@ async function importJSON(file) {
   );
 
   const d = await openModal({ title: "Restaurer une sauvegarde", body, okText: "Restaurer" });
-  if (!d) return;
+  if (!d) return false;
 
   remember("Restaurer une sauvegarde");
 
@@ -2323,12 +2342,86 @@ async function importJSON(file) {
   applyStyle();
   commit();
   toast(`${nbTables} tableau${nbTables > 1 ? "x" : ""} restauré${nbTables > 1 ? "s" : ""}`);
+  return true;
 }
 
 function importBackup() {
   const inp = $("#file-json");
   inp.value = "";
   inp.click();
+}
+
+/* ---------- Sauvegarde et ouverture par fichier local ---------- */
+
+const BACKUP_PICKER_TYPES = [
+  { description: "Sauvegarde Tableaux", accept: { "application/json": [".json"] } },
+];
+
+function defaultBackupName() {
+  const d = new Date();
+  const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `sauvegarde-tableaux-${stamp}.json`;
+}
+
+function backupPayload() {
+  return {
+    app: "tableaux",
+    format: BACKUP_FORMAT,
+    exporteLe: new Date().toISOString(),
+    version: "1.0",
+    tables: state.tables,
+    activeId: state.activeId,
+    style: state.style,
+    print: state.print,
+  };
+}
+
+async function saveToFile() {
+  const text = JSON.stringify(backupPayload(), null, 2);
+  if (window.showSaveFilePicker) {
+    try {
+      if (!fileHandle) {
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: fileName || defaultBackupName(),
+          types: BACKUP_PICKER_TYPES,
+        });
+      }
+      const w = await fileHandle.createWritable();
+      await w.write(text);
+      await w.close();
+      fileName = fileHandle.name || fileName;
+      markClean();
+      toast(`Enregistré dans ${fileName || "le fichier"}`);
+      return;
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      fileHandle = null;
+    }
+  }
+  const name = fileName || defaultBackupName();
+  download(name, text, "application/json");
+  fileName = name;
+  markClean();
+  toast(`Sauvegarde créée · ${state.tables.length} tableau${state.tables.length > 1 ? "x" : ""}`);
+}
+
+async function openFromFile() {
+  if (window.showOpenFilePicker) {
+    try {
+      const [handle] = await window.showOpenFilePicker({ multiple: false, types: BACKUP_PICKER_TYPES });
+      const f = await handle.getFile();
+      const ok = await importJSON(f);
+      if (ok) {
+        fileHandle = handle;
+        fileName = f.name;
+        markClean();
+      }
+      return;
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+    }
+  }
+  importBackup();
 }
 
 /* ---------- Export Word (.doc) ---------- */
@@ -2454,7 +2547,7 @@ function toDocHTML(t, rows) {
     font-weight: ${st.headWeight};
     color: ${c.cellFg};
     text-transform: ${st.headTransform};
-    text-align: ${st.headAlign === "center" ? "center" : "left"};
+    text-align: ${st.headAlign === "center" ? "center" : st.headAlign === "right" ? "right" : "left"};
     mso-pattern: solid ${c.headBg};
     background: ${c.headBg};
     height: ${headH}pt;
@@ -3190,7 +3283,7 @@ function buildStyleForm() {
   const radiusSel = makePick("radius", [[0, "Angles droits"], [4, "Légèrement arrondis"], [8, "Arrondis"], [12, "Très arrondis"], [18, "Capsule"], [24, "Très arrondi"]], st0.radius);
 
   const headTSeg = makeSeg("headTransform", [["none", "Normal"], ["uppercase", "MAJUSCULES"]], st0.headTransform);
-  const headASeg = makeSeg("headAlign", [["left", "Gauche"], ["center", "Centré"]], st0.headAlign);
+  const headASeg = makeSeg("headAlign", [["left", "Gauche"], ["center", "Centré"], ["right", "Droite"]], st0.headAlign);
   const bwSeg = makeSeg("borderWidth", [[0, "Aucun"], [1, "Fin"], [2, "Moyen"], [3, "Épais"]], st0.borderWidth);
   const bsSeg = makeSeg("borderStyle", [["solid", "Plein"], ["dashed", "Tirets"], ["dotted", "Pointillé"], ["double", "Double"]], st0.borderStyle);
 
@@ -3311,7 +3404,7 @@ function buildStyleForm() {
   setPickValue(pWeightSel2, p0.headWeight);
 
   const pHeadTSeg = makeSeg("p-headTransform", [["none", "Normal"], ["uppercase", "MAJUSCULES"]], p0.headTransform);
-  const pHeadASeg = makeSeg("p-headAlign", [["left", "Gauche"], ["center", "Centré"]], p0.headAlign);
+  const pHeadASeg = makeSeg("p-headAlign", [["left", "Gauche"], ["center", "Centré"], ["right", "Droite"]], p0.headAlign);
 
   const pZebraChk = el("input", { type: "checkbox" });
   pZebraChk.checked = p0.zebra !== false;
@@ -3932,15 +4025,22 @@ function bindEvents() {
   $("#table-list").addEventListener("click", closeSidebar);
   $("#btn-export-csv").addEventListener("click", exportCSV);
   $("#btn-export-doc").addEventListener("click", exportDoc);
-  $("#btn-backup").addEventListener("click", exportJSON);
-  $("#btn-restore").addEventListener("click", importBackup);
+  $("#btn-backup").addEventListener("click", () => saveToFile().catch(() => toast("Sauvegarde impossible", "err")));
+  $("#btn-restore").addEventListener("click", () => openFromFile().catch(() => toast("Ouverture impossible", "err")));
   $("#btn-print").addEventListener("click", printOptions);
   $("#btn-style").addEventListener("click", openStyleModal);
   $("#btn-import").addEventListener("click", importCSV);
 
   $("#file-json").addEventListener("change", (e) => {
     const f = e.target.files[0];
-    if (f) importJSON(f).catch(() => toast("Erreur lors de la restauration", "err"));
+    if (!f) return;
+    importJSON(f).then((ok) => {
+      if (ok) {
+        fileHandle = null;
+        fileName = f.name;
+        markClean();
+      }
+    }).catch(() => toast("Erreur lors de la restauration", "err"));
   });
 
   window.addEventListener("afterprint", restoreAfterPrint);
@@ -4043,6 +4143,13 @@ function boot() {
   }
 
   historyReset("Ouverture");
+  window.addEventListener("beforeunload", (e) => {
+    if (dirty) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
+  updateDirtyUI();
 }
 
 boot();

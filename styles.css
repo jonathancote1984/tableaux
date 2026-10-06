@@ -2112,6 +2112,7 @@ body.tbl-zebra .grid-row.body:nth-child(even):hover {
 }
 
 .style-preview .pv-head[data-align="center"] .pv-cell { justify-content: center; }
+.style-preview .pv-head[data-align="right"] .pv-cell { justify-content: flex-end; }
 
 .style-preview .pv-num { justify-content: flex-end; font-variant-numeric: tabular-nums; }
 
@@ -2382,6 +2383,12 @@ body.resizing * {
     overflow: visible;
     background: #fff !important;
     color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-header, .print-header *,
+  .grid, .grid * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
